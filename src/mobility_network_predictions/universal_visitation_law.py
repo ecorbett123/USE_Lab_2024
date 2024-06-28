@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-import os
 import pandas as pd
 import math
 from geopy.distance import geodesic
@@ -54,6 +53,7 @@ def normalize(num_rides, bucket):
 # read in dataframe - time period = 1 month (july)
 csv_directory = '/Users/emmacorbett/PycharmProjects/USE_Lab/data/Citibike/7_July_2023'
 #csv_directory = '/Users/emmacorbett/PycharmProjects/USE_Lab/data/Citibike/test'
+# Uncomment out the below to create the initial distances file (takes like 10min to run)
 # List to store individual DataFrames
 # dataframes = []
 #
@@ -105,12 +105,10 @@ df_rides = pd.read_csv('df_rides.csv')
 aggregated_destination_rides = df_rides.groupby('destination_grid_cell').size().reset_index(name='total_destination_rides')
 
 # get the top n most visited destinations
-n = 10
+n = 3
 top_n_destinations = aggregated_destination_rides.sort_values(by='total_destination_rides', ascending=False).head(n)
 # get number of rides within x distance away for origin
 
-
-#distance_bins = range(0, 5000, 500)
 for i in range(n):
     dest = top_n_destinations.iloc[i]
     dest_grid_cell = dest['destination_grid_cell']
@@ -124,11 +122,10 @@ for i in range(n):
     # Create log-spaced bins
     num_bins = 20
     # Distance range of 1 to 10000.0
-    # TODO: Should i make the min distance the min length bike ride for that graph?
     min_distance_ride = df_rides_filtered['distance_to_top_destination'].min()
     max_distance_ride = df_rides_filtered['distance_to_top_destination'].max()
-    bins = np.logspace(np.log10(min_distance_ride), np.log10(max_distance_ride + 10.0), num_bins)
-
+    bins = np.logspace(np.log10(min_distance_ride), np.log10(max_distance_ride + 10.0), num_bins) # log space bins
+    # bins = range(0, int(max_distance_ride), 500) # bins for non log space
     df_rides_filtered['distance_bin'] = pd.cut(df_rides_filtered['distance_to_top_destination'], bins=bins)
 
     # Aggregate the number of rides for each distance bin
@@ -139,7 +136,7 @@ for i in range(n):
         lambda row: pd.Series(normalize(
             row['num_rides'], row['distance_bin'])), axis=1
     )
-
+    distance_ride_counts.to_csv('top_' + str(i) + '_distance.csv', index=False)
     plt.figure(figsize=(10, 6))
     plt.plot(distance_ride_counts['distance_bin'].astype(str), distance_ride_counts['num_rides'], marker='o')
     plt.xticks(rotation=90)
@@ -153,4 +150,3 @@ for i in range(n):
 
 
 # TODO: Account for bounds of ocean in calculating normalizing area; check if normalize by population?
-# TODO: log log scale
