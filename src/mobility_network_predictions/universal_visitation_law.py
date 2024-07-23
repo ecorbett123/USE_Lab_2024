@@ -3,6 +3,7 @@ import pandas as pd
 import math
 from geopy.distance import geodesic
 import json
+import os
 
 # Constants
 LATITUDE_DEGREE_METERS = 111320  # meters per degree of latitude
@@ -50,7 +51,7 @@ def normalize(num_rides, bucket):
 
 
 # read in dataframe - time period = 1 month (july)
-csv_directory = '/Users/emmacorbett/PycharmProjects/USE_Lab/data/Citibike/7_July_2023'
+csv_directory = '/Users/emmacorbett/PycharmProjects/USE_Lab/data/Citibike/5_May_2024'
 #csv_directory = '/Users/emmacorbett/PycharmProjects/USE_Lab/data/Citibike/test'
 # Uncomment out the below to create the initial distances file (takes like 10min to run)
 # List to store individual DataFrames
@@ -91,14 +92,14 @@ csv_directory = '/Users/emmacorbett/PycharmProjects/USE_Lab/data/Citibike/7_July
 #         row['end_lat'], row['end_lng'], lat_min, lon_min, lat_step, lon_step, grid_cells
 #     )), axis=1
 # )
-
-# with open('grid_cells.json', 'w') as file:
+#
+# with open('grid_cells_2024.json', 'w') as file:
 #     json.dump(grid_cells, file)
 
-with open('grid_cells.json', 'r') as file:
+with open('grid_cells_2024.json', 'r') as file:
     grid_cells = json.load(file)
-#df_rides.to_csv('df_rides.csv', index=False)
-df_rides = pd.read_csv('df_rides.csv')
+# df_rides.to_csv('df_rides_2024.csv', index=False)
+df_rides = pd.read_csv('df_rides_2024.csv')
 
 # Aggregate the total number of rides that ended in each grid cell
 aggregated_destination_rides = df_rides.groupby('destination_grid_cell').size().reset_index(name='total_destination_rides')
@@ -109,6 +110,7 @@ top_n_destinations = aggregated_destination_rides.sort_values(by='total_destinat
 # get number of rides within x distance away for origin
 
 # max_bucket = []
+# max_bucket_electric = []
 for i in range(n):
     dest = top_n_destinations.iloc[i]
     dest_grid_cell = dest['destination_grid_cell']
@@ -118,15 +120,32 @@ for i in range(n):
         lambda row: calculate_distance(row['start_lat'], row['start_lng'], dest_center[0], dest_center[1]),
         axis=1
     )
+    df_rides_filtered.to_csv('distance_to_top_' + str(i) + '_2024.csv')
+    df_rides_electric = df_rides_filtered.copy(deep=True)
+    df_rides_classic = df_rides_filtered.copy(deep=True)
+    df_rides_electric = df_rides_electric.drop(df_rides_electric[df_rides_electric['rideable_type'] != "electric_bike"].index)
+    df_rides_classic = df_rides_classic.drop(df_rides_classic[df_rides_classic['rideable_type'] != "classic_bike"].index)
 
     bins = range(0, 19000, 500)
-    df_rides_filtered['distance_bin'] = pd.cut(df_rides_filtered['distance_to_top_destination'], bins=bins)
+    #df_rides_filtered['distance_bin'] = pd.cut(df_rides_filtered['distance_to_top_destination'], bins=bins)
+    df_rides_electric['distance_bin'] = pd.cut(df_rides_electric['distance_to_top_destination'], bins=bins)
+    df_rides_classic['distance_bin'] = pd.cut(df_rides_classic['distance_to_top_destination'], bins=bins)
 
     # Aggregate the number of rides for each distance bin
-    distance_ride_counts = df_rides_filtered.groupby('distance_bin').size().reset_index(name='num_rides')
+    #distance_ride_counts = df_rides_filtered.groupby('distance_bin').size().reset_index(name='num_rides')
+    distance_ride_counts_classic = df_rides_classic.groupby('distance_bin').size().reset_index(name='num_rides')
+    distance_ride_counts_electric = df_rides_electric.groupby('distance_bin').size().reset_index(name='num_rides')
 
     #normalize the number of rides based on bin
-    distance_ride_counts[['num_rides']] = distance_ride_counts.apply(
+    # distance_ride_counts[['num_rides']] = distance_ride_counts.apply(
+    #     lambda row: pd.Series(normalize(
+    #         row['num_rides'], row['distance_bin'])), axis=1
+    # )
+    distance_ride_counts_classic[['num_rides']] = distance_ride_counts_classic.apply(
+        lambda row: pd.Series(normalize(
+            row['num_rides'], row['distance_bin'])), axis=1
+    )
+    distance_ride_counts_electric[['num_rides']] = distance_ride_counts_electric.apply(
         lambda row: pd.Series(normalize(
             row['num_rides'], row['distance_bin'])), axis=1
     )
@@ -137,17 +156,23 @@ for i in range(n):
 
     plot_bins = [math.log10(x + 250) if x != 0 else math.log10(250) for x in bins]
     plot_bins = plot_bins[:-1]
-    distance_ride_counts.to_csv('top_' + str(i) + '_distance.csv', index=False)
+    # distance_ride_counts.to_csv('top_' + str(i) + '_distance.csv', index=False)
+    # distance_ride_counts_classic.to_csv('top_' + str(i) + '_distance_classic_2024.csv', index=False)
+    # distance_ride_counts_electric.to_csv('top_' + str(i) + '_distance_electric_2024.csv', index=False)
     plt.figure(figsize=(10, 6))
-    plt.plot(plot_bins, distance_ride_counts['num_rides'], marker='o')
+    #plt.plot(plot_bins, distance_ride_counts['num_rides'], marker='o', label='classic')
+    plt.plot(plot_bins, distance_ride_counts_classic['num_rides'], marker='o', label='classic')
+    plt.plot(plot_bins, distance_ride_counts_electric['num_rides'], marker='o', label='electric')
     plt.xticks(rotation=90)
     plt.xlabel('Distance from Destination (meters)')
     plt.ylabel('Number of Rides')
-    plt.title('Number of Rides vs Distance from Destination- ')
+    plt.title('Classic v Electric: Number of Rides vs Distance from Destination- ')
     plt.grid(True)
     plt.tight_layout()
-    #plt.show()
-    plt.savefig('plot' + str(i) + '.png')
+    plt.legend()
+    # plt.show()
+    # plt.savefig('plot' + str(i) + '_classic_v_electric_2024.png')
 
-
+# print(max_bucket)
+# print(max_bucket_electric)
 # TODO: Account for bounds of ocean in calculating normalizing area
