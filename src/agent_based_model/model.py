@@ -1,14 +1,11 @@
 import mesa
 import os
 import pandas as pd
-import osmnx as ox
-from agents import BikerAgent, NeighbourhoodAgent, RoadAgent
+from agents import BikerAgent, RoadAgent
 import mesa_geo as mg
-from shapely.geometry import Point, LineString
+from shapely.geometry import Point
 import matplotlib.cm as cm
 from matplotlib.colors import Normalize
-import random
-import math
 
 class BikerModel(mesa.Model):
     """A model with some number of agents."""
@@ -19,29 +16,15 @@ class BikerModel(mesa.Model):
     def __init__(self, dir_name, G):
         super().__init__()
         self.num_agents = 0
-        self.schedule = mesa.time.BaseScheduler(self)
+        self.schedule = mesa.time.BaseScheduler(self) # TODO: can extend base scheduler to keep agents in map structure to speed up search
         self.space = mg.GeoSpace(warn_crs_conversion=True, crs="epsg:4326")
         self.steps = 0
         self.counts = None
         self.reset_counts()
         self.G = G
+        self.road_map = {}
 
         self.running = True
-        # self.datacollector = mesa.DataCollector(
-        #     {
-        #         "cool": get_cool_count,
-        #         "warm": get_warm_count,
-        #         "hot": get_hot_count,
-        #         "burning": get_burning_count,
-        #     }
-        # )
-
-        # Set up the Neighborhood regions:
-        # ac = mg.AgentCreator(NeighbourhoodAgent, model=self)
-        # neighbourhood_agents = ac.from_file(
-        #     self.geojson_regions, unique_id=self.unique_id
-        # )
-        # self.space.add_agents(neighbourhood_agents)
 
         # set up Road segment agents
         road_creator = mg.AgentCreator(RoadAgent,
@@ -63,8 +46,12 @@ class BikerModel(mesa.Model):
                         max_speed = edge_data['speed_kph'] / 3.6
                     length = edge_data['length']  # returns length in meters
                     time = length / max_speed
-                road.heat_contribution = time*t2
+                road.heat_contribution = time * t2
                 road.edge_id = edge
+                road.start_node = edge[0]
+                road.end_node = edge[1]
+                road.osmid = edge_data['osmid']
+
                 self.num_agents += 1
                 self.space.add_agents(road)
                 self.schedule.add(road)
@@ -83,11 +70,18 @@ class BikerModel(mesa.Model):
         for file in dirs:
             if file.endswith('.csv'):
                 df = pd.read_csv(dir_name + "/" + file)
+                # df_unfiltered = pd.read_csv(dir_name + "/" + file)
                 # shortest_paths = []
                 # orig_list = []
                 # df_unfiltered['started_at'] = pd.to_datetime(df_unfiltered['started_at'])
                 # df_unfiltered['ended_at'] = pd.to_datetime(df_unfiltered['ended_at'])
-                # df = df_unfiltered[(df_unfiltered['started_at'].dt.hour >= 11) & (df_unfiltered['started_at'].dt.hour < 14) & (df_unfiltered['end_lng']) & (df_unfiltered['start_lng'])]
+                # df_unfiltered = df_unfiltered[(df_unfiltered['started_at'].dt.hour >= 11) & (df_unfiltered['started_at'].dt.hour < 14) & (df_unfiltered['end_lng']) & (df_unfiltered['start_lng'])]
+                #
+                # start_date = datetime.strptime('2024-05-01', '%Y-%m-%d').date()
+                # end_date = datetime.strptime('2024-05-08', '%Y-%m-%d').date()
+                # df = df_unfiltered[(df_unfiltered['started_at'].dt.date >= start_date) & (df_unfiltered['started_at'].dt.date < end_date)]
+                # line_num = 0
+                # sheet_num = 1
                 for _, row in df.iterrows():
                     # code to calculate and save shortest path information on first run
                     # orig = ox.distance.nearest_nodes(G, X=row['start_lng'], Y=row['start_lat'])
@@ -106,18 +100,28 @@ class BikerModel(mesa.Model):
                         self.num_agents += 1
                         self.space.add_agents(a)
                         self.schedule.add(a)
-                # Code to save shortest path info on first run through
-                # df['orig'] = orig_list
-                # df['shortest_path'] = shortest_paths
-                # df.to_csv('2024_path_test_' + file)
 
-        # for agent in neighbourhood_agents:
-        #     self.schedule.add(agent)
+                    # line_num += 1
+                    # if line_num % 999999 == 0:
+                    #     # start new sheet
+                    #     sheet_num += 1
+                    #
+                    # if line_num % 1000 == 0:
+                    #     # write to sheet
+                    #     chunk = df.iloc[line_num-1000:line_num]
+                    #     chunk['orig'] = orig_list
+                    #     chunk['shortest_path'] = shortest_paths
+                    #     chunk.to_csv('2024_path_test_' + str(sheet_num) + '_' + file, mode='a', index=False, header=False)
+                    #     shortest_paths = []
+                    #     orig_list = []
+                    #     print("cur line num: " + str(line_num))
+
+                # TODO: Account for the very last 1000 in a file... can worry about later
+
         self.assign_colors()
-        #self.datacollector.collect(self)
         print("Made it")
 
-    # TODO: do this for road segments as well
+
     def assign_colors(self):
         biker_values = []
         road_values = []
@@ -176,37 +180,49 @@ class BikerModel(mesa.Model):
             print("Geometry: " + str(max_bike.geometry) + " heat: " + str(max_bike.heat_accumulation))
             print("Geometry: " + str(max_road.geometry) + " heat: " + str(max_road.heat_accumulation))
 
-    def reset_counts(self):
-        self.counts = {
-            "cool": 0,
-            "warm": 0,
-            "hot": 0,
-            "burning": 0
-        }
 
     def step(self):
         """Advance the model by one step."""
-        # The model's step will go here for now this will call the step method of each agent and print the agent's unique_id
         self.steps += 1
-        #self.reset_counts()
         self.schedule.step()
-        #self.datacollector.collect(self)
+        # eventually should eliminate this
+        for agent in self.schedule.agents:
+            if isinstance(agent, RoadAgent):
+                if str(agent.osmid) in self.road_map:
+                    agent.heat_accumulation += (self.road_map[str(agent.osmid)] * agent.heat_contribution)
         self.assign_colors()
+        self.road_map = {}
+        # max_agent = []
+        # for agent in self.schedule.agents:
+        #     if isinstance(agent, RoadAgent):
+        #         max_agent.append(agent)
+        #         if len(max_agent) == 20:
+        #             break
+        # self.highlight_max_segments(max_agent)
 
         # TODO: set condition to stop running once all paths have been run
 
 
-def get_cool_count(model):
-    return model.counts["cool"]
+    # this fucntion colors the edges of the route with the highest heat accumulation (route will be pre saved)
+    def assign_color_max_route(self, max_bike):
+        for agent in self.schedule.agents:
+            if isinstance(agent, BikerAgent):
+                # red_val = norm_bike(agent.heat_accumulation)
+                # agent.color = (red_val, 0, 0, 1)
+                agent.color = (255, 255, 255, 1)
+            elif isinstance(agent, RoadAgent):
+                if agent.start_node in max_bike.route and agent.end_node in max_bike.route:
+                    agent.color = (0.6, 0, 0, 1)
+                else:
+                    agent.color = (255, 255, 255, 1)
 
-
-def get_warm_count(model):
-    return model.counts["warm"]
-
-
-def get_hot_count(model):
-    return model.counts["hot"]
-
-
-def get_burning_count(model):
-    return model.counts["burning"]
+    # highlights all the edges passed in max_segments - can be used to show any set of segments
+    def highlight_max_segments(self, max_segments):
+        for agent in self.schedule.agents:
+            if isinstance(agent, BikerAgent):
+                agent.color = (255, 255, 255, 1)
+            elif isinstance(agent, RoadAgent):
+                if agent.edge_id in max_segments:
+                    agent.color = (0.6, 0, 0, 1)
+                else:
+                    agent.color = (255, 255, 255, 1)

@@ -1,6 +1,6 @@
 import mesa
 import mesa_geo as mg
-from agents import BikerAgent
+from agents import BikerAgent, RoadAgent
 from model import BikerModel
 import osmnx as ox
 
@@ -17,19 +17,10 @@ class BikerText(mesa.visualization.TextElement):
         return "Steps: " + str(model.steps)
 
 
-# model_params = {
-#     "pop_size": mesa.visualization.Slider("Population size", 30, 10, 100, 10),
-#     "init_infected": mesa.visualization.Slider(
-#         "Fraction initial infection", 0.2, 0.00, 1.0, 0.05
-#     ),
-#     "exposure_distance": mesa.visualization.Slider(
-#         "Exposure distance", 500, 100, 1000, 100
-#     ),
-# }
-
-G = ox.load_graphml(filepath="../ny_bike_graph.graphml")
+#G = ox.load_graphml(filepath="../ny_bike_graph.graphml")
+G = ox.load_graphml(filepath="/Users/emmacorbett/PycharmProjects/USE_Lab/src/agent_based_model/ny_bike_graph_heat_included.graphml")
 model_params = {
-    "dir_name": "/Users/emmacorbett/PycharmProjects/USE_Lab/data/Citibike/test",
+    "dir_name": "/Users/emmacorbett/PycharmProjects/USE_Lab/src/agent_based_model/data",
     "G": G
 }
 
@@ -39,33 +30,26 @@ def biker_draw(agent):
     Portrayal Method for canvas
     """
     portrayal = {}
-    if agent.heat_accumulation < 5:
-        portrayal["color"] = "Green"
-    elif agent.heat_accumulation < 10:
-        portrayal["color"] = "Blue"
-    elif agent.heat_accumulation < 20:
-        portrayal["color"] = "Red"
-    else:
-        portrayal["color"] = "Black"
+    color = [int(c * 255) for c in agent.color[:3]]
+    portrayal["color"] = "rgb(" + str(color[0]) + "," + str(color[1]) + "," + str(color[2]) + ")"
+
+    if isinstance(agent, RoadAgent):
+        portrayal["radius"] = "0.5"
+        portrayal["Shape"] = "line"
+
     if isinstance(agent, BikerAgent):
-        portrayal["radius"] = "1"
+        portrayal["Shape"] = "circle"
+        portrayal["Filled"] = "true"
+        portrayal["radius"] = 3.0
     return portrayal
 
 
 biker_text = BikerText()
 map_element = mg.visualization.MapModule(biker_draw)
-biker_chart = mesa.visualization.ChartModule(
-    [
-        {"Label": "cool", "Color": "Green"},
-        {"Label": "warm", "Color": "Blue"},
-        {"Label": "hot", "Color": "Red"},
-        {"Label": "burning", "Color": "Black"},
-    ]
-)
 
 server = mesa.visualization.ModularServer(
     BikerModel,
-    [map_element, biker_chart, biker_text],
+    [map_element, biker_text],
     "Basic agent-based biker model",
     model_params
 )
