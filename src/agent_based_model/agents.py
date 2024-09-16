@@ -5,7 +5,7 @@ from shapely.geometry import Point
 class BikerAgent(mg.GeoAgent):
     """An agent with fixed journey."""
 
-    def __init__(self, unique_id, model, geometry, crs, origin, destination, route, G):
+    def __init__(self, unique_id, model, geometry, crs, origin, destination, route, G, trip_count):
         '''
         Create a new traveler agent.
         :param unique_id: Unique id for agent
@@ -25,8 +25,8 @@ class BikerAgent(mg.GeoAgent):
         self.heat_accumulation = 0
         self.color = None
         self.G = G
+        self.trip_count = trip_count
         #self.isElectric = isElectric # TODO: incorporate is electric to heat acculumation function
-        self.model.counts["cool"] += 1
 
     def get_heat_accumulation(self, edge_data, next_node_dict):
 
@@ -59,7 +59,7 @@ class BikerAgent(mg.GeoAgent):
         # Accumulate heat index based on their route
         if self.route and self.cur_time_step + 1 < len(self.route):
             cur_node = self.route[self.cur_time_step]
-            next_node =self.route[self.cur_time_step + 1]
+            next_node = self.route[self.cur_time_step + 1]
             next_node_dict = self.G.nodes[next_node]
             edge_data = self.G.get_edge_data(cur_node, next_node)
             if len(edge_data) < 1:
@@ -110,9 +110,10 @@ class RoadAgent(mg.GeoAgent):
     # currently accumulates the raw number of bikers who used this path
     # eventually want to come up with some formula to include length of path to determine heat contribution
     def get_heat_contribution(self):
-        neighbors = self.model.space.get_intersecting_agents(self)
-        num_neigh = [neigh for neigh in neighbors if isinstance(neigh, BikerAgent)]
-        self.heat_accumulation += (len(num_neigh) * self.heat_contribution) # check why this isn't working...
+        pass
+        # neighbors = self.model.space.get_intersecting_agents(self)
+        # num_neigh = [neigh for neigh in neighbors if isinstance(neigh, BikerAgent)]
+        # self.heat_accumulation += (len(num_neigh) * self.heat_contribution) # check why this isn't working...
 
     def __repr__(self):
         return "Road segment " + str(self.unique_id)

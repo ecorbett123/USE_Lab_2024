@@ -6,24 +6,25 @@ import mesa_geo as mg
 from shapely.geometry import Point
 import matplotlib.cm as cm
 from matplotlib.colors import Normalize
+from scheduler import CustomScheduler
+from datetime import datetime
+import osmnx as ox
+import json
+import sys
 
 class BikerModel(mesa.Model):
-    """A model with some number of agents."""
-
-    geojson_regions = "/Users/emmacorbett/PycharmProjects/USE_Lab/data/Borough Boundaries.geojson"
-    unique_id = "boro_code"
+    """Model containing biker agents that move throughout NYC accumulating heat indices"""
 
     def __init__(self, dir_name, G):
         super().__init__()
         self.num_agents = 0
-        self.schedule = mesa.time.BaseScheduler(self) # TODO: can extend base scheduler to keep agents in map structure to speed up search
+        self.schedule = CustomScheduler(self)
         self.space = mg.GeoSpace(warn_crs_conversion=True, crs="epsg:4326")
         self.steps = 0
         self.counts = None
-        self.reset_counts()
         self.G = G
         self.road_map = {}
-
+        self.isFinished = False
         self.running = True
 
         # set up Road segment agents
@@ -33,19 +34,25 @@ class BikerModel(mesa.Model):
                                        agent_kwargs={"heat_contribution": None,
                                                      "edge_id": None}
                                        )
+        # add each edge in the osm network graph to the model
         for edge in G.edges:
             edge_data = self.G.edges[edge]
             if 'geometry' in edge_data:
                 road = road_creator.create_agent(edge_data['geometry'], self.num_agents)
+                # t2 is heat index measure - see write_data_from_wrf_to_csv.py and create_osm_heat_bike_graph.py
                 t2 = float(self.G.nodes[edge[0]]['t2'])
+
+                # get travel time for that edge
                 if 'travel_time' in edge_data and edge_data['travel_time'] and edge_data['travel_time'] > 0:
                     time = edge_data['travel_time']
                 else:
                     max_speed = 15  # average cyclist speed is about 10mph, e-bike about 20
                     if 'speed_kph' in edge_data and edge_data['speed_kph'] and edge_data['speed_kph'] > 0:
-                        max_speed = edge_data['speed_kph'] / 3.6
+                        max_speed = edge_data['speed_kph'] / 3.6 # convert kph to meters ph
                     length = edge_data['length']  # returns length in meters
-                    time = length / max_speed
+                    time = length / max_speed # meters / meters ph
+
+                # heat contribution of segment is time travelled times t2 heat index
                 road.heat_contribution = time * t2
                 road.edge_id = edge
                 road.start_node = edge[0]
@@ -63,63 +70,29 @@ class BikerModel(mesa.Model):
                                         agent_kwargs={"origin": None,
                                                       "destination": None,
                                                       "route": None,
-                                                      "G": G}
+                                                      "G": G,
+                                                      "trip_count": None}
                                         )
-        dirs = os.listdir(dir_name)
 
-        for file in dirs:
-            if file.endswith('.csv'):
-                df = pd.read_csv(dir_name + "/" + file)
-                # df_unfiltered = pd.read_csv(dir_name + "/" + file)
-                # shortest_paths = []
-                # orig_list = []
-                # df_unfiltered['started_at'] = pd.to_datetime(df_unfiltered['started_at'])
-                # df_unfiltered['ended_at'] = pd.to_datetime(df_unfiltered['ended_at'])
-                # df_unfiltered = df_unfiltered[(df_unfiltered['started_at'].dt.hour >= 11) & (df_unfiltered['started_at'].dt.hour < 14) & (df_unfiltered['end_lng']) & (df_unfiltered['start_lng'])]
-                #
-                # start_date = datetime.strptime('2024-05-01', '%Y-%m-%d').date()
-                # end_date = datetime.strptime('2024-05-08', '%Y-%m-%d').date()
-                # df = df_unfiltered[(df_unfiltered['started_at'].dt.date >= start_date) & (df_unfiltered['started_at'].dt.date < end_date)]
-                # line_num = 0
-                # sheet_num = 1
-                for _, row in df.iterrows():
-                    # code to calculate and save shortest path information on first run
-                    # orig = ox.distance.nearest_nodes(G, X=row['start_lng'], Y=row['start_lat'])
-                    # dest = ox.distance.nearest_nodes(G, X=row['end_lng'], Y=row['end_lat'])
-                    # route = ox.shortest_path(G, orig, dest, weight="travel_time")
-                    # shortest_paths.append(route)
-                    # orig_list.append(orig)
-                    if 'shortest_path' in row and row['shortest_path'] and not isinstance(row['shortest_path'], float):
-                        orig = row['orig']
-                        route = row['shortest_path'].strip('][').split(', ')
-                        route = [int(x) for x in route]
-                        x, y = self.G.nodes[orig]['x'], self.G.nodes[orig]['y']
+        bikers = pd.read_csv("/Users/emmacorbett/PycharmProjects/USE_Lab/src/agent_based_model/top_journey_counts.csv")
+        for _, row in bikers.iterrows():
+            if 'shortest_path' in row and row['shortest_path'] and not isinstance(row['shortest_path'], float):
+                orig = row['origin_osm_node']
+                route = row['shortest_path'].strip('][').split(', ')
+                route = [int(x) for x in route]
 
-                        a = ac_population.create_agent(Point(x, y), self.num_agents)
-                        a.route = route
-                        self.num_agents += 1
-                        self.space.add_agents(a)
-                        self.schedule.add(a)
+                # drop journeys that start and end at same location, since we cannot assume their path
+                if len(route) > 1:
+                    x, y = self.G.nodes[orig]['x'], self.G.nodes[orig]['y']
 
-                    # line_num += 1
-                    # if line_num % 999999 == 0:
-                    #     # start new sheet
-                    #     sheet_num += 1
-                    #
-                    # if line_num % 1000 == 0:
-                    #     # write to sheet
-                    #     chunk = df.iloc[line_num-1000:line_num]
-                    #     chunk['orig'] = orig_list
-                    #     chunk['shortest_path'] = shortest_paths
-                    #     chunk.to_csv('2024_path_test_' + str(sheet_num) + '_' + file, mode='a', index=False, header=False)
-                    #     shortest_paths = []
-                    #     orig_list = []
-                    #     print("cur line num: " + str(line_num))
-
-                # TODO: Account for the very last 1000 in a file... can worry about later
+                    a = ac_population.create_agent(Point(x, y), self.num_agents)
+                    a.route = route
+                    a.trip_count = row['trip_count']
+                    self.num_agents += 1
+                    self.space.add_agents(a)
+                    self.schedule.add(a)
 
         self.assign_colors()
-        print("Made it")
 
 
     def assign_colors(self):
@@ -129,6 +102,7 @@ class BikerModel(mesa.Model):
         max_road_val = 0
         max_bike = None
         max_road = None
+        # cap the hottest heat measurement
         top = (10000.0 * (self.steps + 1))
         for agent in self.schedule.agents:
             if agent.heat_accumulation != 0:
@@ -144,7 +118,7 @@ class BikerModel(mesa.Model):
                     if agent.heat_accumulation > top:
                         road_values.append(top)
                     else:
-                        road_values.append(agent.heat_accumulation)
+                        road_values.append(agent.heat_contribution)
                     if agent.heat_accumulation > max_road_val:
                         max_road = agent
                         max_road_val = agent.heat_accumulation
@@ -162,8 +136,6 @@ class BikerModel(mesa.Model):
 
         for agent in self.schedule.agents:
             if isinstance(agent, BikerAgent):
-                # red_val = norm_bike(agent.heat_accumulation)
-                # agent.color = (red_val, 0, 0, 1)
                 if agent.heat_accumulation > top:
                     agent.color = cmap_bike(norm_bike(top))
                 else:
@@ -173,9 +145,8 @@ class BikerModel(mesa.Model):
                     agent.color = cmap_road(norm_road(top))
                 else:
                     agent.color = cmap_road(norm_road(agent.heat_accumulation))
-                # blue_val = norm_road(agent.heat_accumulation)
-                # agent.color = (0, 0, blue_val, 1)
-                #agent.color = cmap_road(norm_road(agent.heat_accumulation))
+                    # if want full heat contribution of roads, can do below line
+                    # agent.color = cmap_road(norm_road(agent.heat_contribution))
         if max_bike and max_road:
             print("Geometry: " + str(max_bike.geometry) + " heat: " + str(max_bike.heat_accumulation))
             print("Geometry: " + str(max_road.geometry) + " heat: " + str(max_road.heat_accumulation))
@@ -185,13 +156,56 @@ class BikerModel(mesa.Model):
         """Advance the model by one step."""
         self.steps += 1
         self.schedule.step()
-        # eventually should eliminate this
-        for agent in self.schedule.agents:
-            if isinstance(agent, RoadAgent):
-                if str(agent.osmid) in self.road_map:
-                    agent.heat_accumulation += (self.road_map[str(agent.osmid)] * agent.heat_contribution)
+
+        if not self.isFinished:
+            self.isFinished = True
+            # set heat contribution of road segments after bikers have moved
+            for agent in self.schedule.agents:
+                if isinstance(agent, RoadAgent):
+                    if str(agent.osmid) in self.road_map:
+                        agent.heat_accumulation += (self.road_map[str(agent.osmid)] * agent.heat_contribution)
+                else:
+                    if agent.route and len(agent.route) > agent.cur_time_step:
+                        self.isFinished = False
+                        break
         self.assign_colors()
         self.road_map = {}
+
+        # all paths have been run, find the hottest road segments and higlight them, the hottest normalized paths
+        if self.isFinished:
+            # 20 hottest road segements
+            final_roads = []
+            final_bikers = []
+            for agent in self.schedule.agents:
+                if isinstance(agent, RoadAgent):
+                    final_roads.append(agent)
+                else:
+                    final_bikers.append(agent)
+            sorted_roads = sorted(final_roads, key = lambda x: x.heat_accumulation, reverse=True)
+            sorted_roads = sorted_roads[0:20]
+            sorted_roads = [self.convertTuple(x.edge_id, x.heat_accumulation) for x in sorted_roads]
+
+            #self.highlight_max_segments(sorted_roads)
+            with open('max_road_segments.txt', 'w+') as f:
+                data_to_write = '\n'.join(sorted_roads)
+
+                # Write the data to the file
+                f.write(data_to_write)
+
+            sorted_bikers = sorted(final_bikers, key = lambda x: x.heat_accumulation, reverse=True)
+            sorted_bikers = sorted_bikers[0:20]
+            sorted_bikers = [self.convertTuple(x.route, x.heat_accumulation) for x in sorted_bikers]
+            with open('max_biker_route.txt', 'w+') as file:
+                data_to_write = '\n'.join(sorted_bikers)
+
+                # Write the data to the file
+                file.write(data_to_write)
+
+            sys.exit()
+            # self.highlight_max_segments(sorted_bikers[0].route)
+
+            # hottest route
+
         # max_agent = []
         # for agent in self.schedule.agents:
         #     if isinstance(agent, RoadAgent):
@@ -202,6 +216,13 @@ class BikerModel(mesa.Model):
 
         # TODO: set condition to stop running once all paths have been run
 
+    def convertTuple(self, tup, heat):
+        # initialize an empty string
+        strg = ''
+        for item in tup:
+            strg = strg + str(item) + ','
+        strg = strg + str(heat)
+        return strg
 
     # this fucntion colors the edges of the route with the highest heat accumulation (route will be pre saved)
     def assign_color_max_route(self, max_bike):
@@ -216,7 +237,7 @@ class BikerModel(mesa.Model):
                 else:
                     agent.color = (255, 255, 255, 1)
 
-    # highlights all the edges passed in max_segments - can be used to show any set of segments
+    # highlights all the edges passed in max_segments - can be used to show any set of segments; max segments is a list of edge ids
     def highlight_max_segments(self, max_segments):
         for agent in self.schedule.agents:
             if isinstance(agent, BikerAgent):

@@ -17,10 +17,9 @@ class BikerText(mesa.visualization.TextElement):
         return "Steps: " + str(model.steps)
 
 
-#G = ox.load_graphml(filepath="../ny_bike_graph.graphml")
-G = ox.load_graphml(filepath="/Users/emmacorbett/PycharmProjects/USE_Lab/src/agent_based_model/ny_bike_graph_heat_included.graphml")
+G = ox.load_graphml(filepath="/Users/emmacorbett/PycharmProjects/USE_Lab/src/agent_based_model/ny_bike_graph_heat_included_2.graphml")
 model_params = {
-    "dir_name": "/Users/emmacorbett/PycharmProjects/USE_Lab/src/agent_based_model/data",
+    "dir_name": "/Users/emmacorbett/PycharmProjects/USE_Lab/data/Citibike/5_May_2024",
     "G": G
 }
 

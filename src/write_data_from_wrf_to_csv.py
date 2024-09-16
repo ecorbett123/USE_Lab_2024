@@ -27,9 +27,9 @@ def visualize_wrf_output(file_path, variable_name):
         t2_np = to_np(var)
 
         # write lat, lon, and vars to csv files
-        np.savetxt('lat_array.csv', lats_np, delimiter=',')
-        np.savetxt('lon_array.csv', lons_np, delimiter=',')
-        np.savetxt('t2_array.csv', t2_np, delimiter=',')
+        np.savetxt('lat_array_2.csv', lats_np, delimiter=',')
+        np.savetxt('lon_array_2.csv', lons_np, delimiter=',')
+        np.savetxt('t2_array_2.csv', t2_np, delimiter=',')
 
         # Get the cartopy projection
         # cart_proj = get_cartopy(var)
@@ -61,9 +61,9 @@ def visualize_wrf_output(file_path, variable_name):
 
 # Paths to the wrfout files for domains d02 and d03
 file_paths = [
-    r"/Users/emmacorbett/PycharmProjects/USE_Lab/wrfout_d01_2024-06-04_00_00_00",
-    r"/Users/emmacorbett/PycharmProjects/USE_Lab/wrfout_d02_2024-06-04_00_00_00",
-    r"/Users/emmacorbett/PycharmProjects/USE_Lab/wrfout_d03_2024-06-04_00_00_00"
+    r"/Users/emmacorbett/PycharmProjects/USE_Lab/data/wrf_heat_maps/aug5_2024/wrfout_d01_2024-06-20_00_00_00",
+    r"/Users/emmacorbett/PycharmProjects/USE_Lab/data/wrf_heat_maps/aug5_2024/wrfout_d02_2024-06-20_00_00_00",
+    r"/Users/emmacorbett/PycharmProjects/USE_Lab/data/wrf_heat_maps/aug5_2024/wrfout_d03_2024-06-20_00_00_00"
 ]
 
 # Visualize a common variable, e.g., 2-meter temperature (T2)

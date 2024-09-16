@@ -26,9 +26,9 @@ def get_closest_index(lat_array, long_array, lat, lon):
 #G = ox.graph_from_place("New York City, New York, USA", network_type='bike', retain_all=True)
 G = ox.load_graphml(filepath="../ny_bike_graph.graphml")
 
-lat_array = np.loadtxt("/Users/emmacorbett/PycharmProjects/USE_Lab/data/wrf_heat_maps/lat_array.csv", delimiter=',')
-long_array = np.loadtxt("/Users/emmacorbett/PycharmProjects/USE_Lab/data/wrf_heat_maps/lon_array.csv", delimiter=',')
-t2_array = np.loadtxt("/Users/emmacorbett/PycharmProjects/USE_Lab/data/wrf_heat_maps/t2_array.csv", delimiter=',')
+lat_array = np.loadtxt("/Users/emmacorbett/PycharmProjects/USE_Lab/data/wrf_heat_maps/aug5_2024/lat_array_2.csv", delimiter=',')
+long_array = np.loadtxt("/Users/emmacorbett/PycharmProjects/USE_Lab/data/wrf_heat_maps/aug5_2024/lon_array_2.csv", delimiter=',')
+t2_array = np.loadtxt("/Users/emmacorbett/PycharmProjects/USE_Lab/data/wrf_heat_maps/aug5_2024/t2_array_2.csv", delimiter=',')
 
 # find min distance between the points - approximately 515 meters
 # distances = []
@@ -54,11 +54,10 @@ tree = spatial.KDTree(lat_lon_coords)
 
 node_to_heat_dict = {}
 for node in G.nodes:
-    #index = get_closest_index(lat_array, long_array, G.nodes[node]['y'], G.nodes[node]['x'])
     index = tree.query([(G.nodes[node]['y'], G.nodes[node]['x'])])
     result = index[1]
     final_ind = ind_map[lat_lon_coords[result[0]]]
     node_to_heat_dict[node] = t2_array[final_ind[0]][final_ind[1]]
 
 nx.set_node_attributes(G, node_to_heat_dict, name='t2')
-ox.save_graphml(G, "ny_bike_graph_heat_included.graphml")
+ox.save_graphml(G, "ny_bike_graph_heat_included_2.graphml")
