@@ -108,12 +108,12 @@ class RoadAgent(mg.GeoAgent):
         self.cur_time_step += 1
 
     # currently accumulates the raw number of bikers who used this path
-    # eventually want to come up with some formula to include length of path to determine heat contribution
+    # eventually want to come up with formula to include length of path to determine heat contribution
     def get_heat_contribution(self):
-        pass
-        # neighbors = self.model.space.get_intersecting_agents(self)
-        # num_neigh = [neigh for neigh in neighbors if isinstance(neigh, BikerAgent)]
-        # self.heat_accumulation += (len(num_neigh) * self.heat_contribution) # check why this isn't working...
+        #pass
+        neighbors = self.model.space.get_intersecting_agents(self)
+        num_neigh = [neigh for neigh in neighbors if isinstance(neigh, BikerAgent)]
+        self.heat_accumulation += (len(num_neigh) * self.heat_contribution)
 
     def __repr__(self):
         return "Road segment " + str(self.unique_id)

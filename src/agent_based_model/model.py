@@ -214,8 +214,6 @@ class BikerModel(mesa.Model):
         #             break
         # self.highlight_max_segments(max_agent)
 
-        # TODO: set condition to stop running once all paths have been run
-
     def convertTuple(self, tup, heat):
         # initialize an empty string
         strg = ''

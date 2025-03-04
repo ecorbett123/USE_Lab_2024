@@ -12,6 +12,8 @@ from typing import Any
 from agents import BikerAgent
 
 
+# THe following class is copied and then edited from the original mesa code base to make custom for this purpose of this biker agent model
+
 class AgentSet:
     pass
 
@@ -293,7 +295,6 @@ class AgentSet(MutableSet, Sequence):
         return self.model.random
 
 
-# TODO: modify custom scheduler to make this much quicker :) only really bikers need computation
 class CustomScheduler(mesa.time.BaseScheduler):
     """
         A scheduler that activates each type of agent once per step, in random order, with the order reshuffled every step.
@@ -389,7 +390,7 @@ class CustomScheduler(mesa.time.BaseScheduler):
         # if shuffle_types:
         #     self.model.random.shuffle(type_keys)
         # for agent_class in type_keys:
-        # Step bikers first then road (maybe not even road)
+        # Step bikers first then road
         self.step_type(BikerAgent)
         #self.step_type(agent_class, shuffle_agents=shuffle_agents)
         self.steps += 1

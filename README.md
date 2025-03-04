@@ -1,5 +1,21 @@
 # USE_Lab
-Urban Systems Engineering Lab
+Urban Systems Engineering Lab, Summer 2024
+
+## Contents:
+This repository contains three main directories. Each directory has their own ReadMe describing the research goal. 
+1. Agent_based_model
+2. Flow_rate_predictions
+3. Universal_visitation_law_analysis
+
+
+## Technologies Used:
+- Open Street Map (OSM), geospatial data
+- Networkx, graph theory
+- Machine learning, neural networks 
+- Agent based modelling techniques 
+- Urban engineering formulas 
+
+## Coding Notes:
 
 Steps for generating heat map:
 1. Run the write_data_from_wrf_to_csv.py file on the wrf files from the model to generate 3 files- lat, lon, and t2 values - these are matrices where each index corresponds to the same entry for each file; make sure to supply the file correct file paths

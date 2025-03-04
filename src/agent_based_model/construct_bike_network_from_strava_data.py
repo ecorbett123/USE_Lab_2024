@@ -38,7 +38,3 @@ for way in result.ways:
         bike_network.add_edge(nodes[i], nodes[i+1], flow=weight)
 
 print(nx.number_connected_components(bike_network))
-
-# now we want to come up with a distribution of the journeys based on the o/d matrix... this will involve lat/long
-# get lat long of edge id based on a node, place it within a hex .. etc. (create a get o/d method and get path to follow)
-# TODO: Implement get path, get journey, get weight methods...
