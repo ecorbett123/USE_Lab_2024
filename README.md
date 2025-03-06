@@ -1,11 +1,15 @@
 # USE_Lab
 Urban Systems Engineering Lab, Summer 2024
 
+This project was motivated largely by my belief in the importance of providing affordable and equitable public transportation.
+Transportation is an essential way to connect communities and combat inequality and provide equal access to jobs and community resources.
+With that in mind, I carried out three different projects centered around studying mobility patterns in New York City to further my understanding of areas of improvement in our current transportation network. 
+
 ## Contents:
 This repository contains three main directories. Each directory has their own ReadMe describing the research goal. 
-1. Agent_based_model
-2. Flow_rate_predictions
-3. Universal_visitation_law_analysis
+1. Agent_based_model: focus on bike networks and the urban heat island effect (how cities are getting hotter due to climate change and how that disproportionately effects different communities)
+2. Flow_rate_predictions: using neural networks to predict mobility patterns, comparing pre- and post-Covid trends as well as pre- and post-opening of points of interest such as Hudson Yards
+3. Universal_visitation_law_analysis: studying if current biking data in NYC supports the universal visitation law so that we can use the law as a baseline for further predictions
 
 
 ## Technologies Used:
@@ -13,7 +17,7 @@ This repository contains three main directories. Each directory has their own Re
 - Networkx, graph theory
 - Machine learning, neural networks 
 - Agent based modelling techniques 
-- Urban engineering formulas 
+- Urban engineering algorithms 
 
 ## Coding Notes:
 
